@@ -10,6 +10,9 @@ Un tableau de bord interactif et responsive pour visualiser les données mondial
 
 <img width="926" height="533" alt="image" src="https://github.com/user-attachments/assets/39885e12-6a4a-4b28-a8c8-6801c8f2cc1b" />
 
+Lien de la démo : https://an-steve.github.io/Dashboard-Covid-19/
+
+---
 
 Le dashboard présente en une seule page :
 
