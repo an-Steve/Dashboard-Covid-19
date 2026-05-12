@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard COVID-19</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-primary: #0a0e1a;
+    --bg-secondary: #111827;
+    --bg-card: #161d2e;
+    --bg-card-hover: #1c2540;
+    --border: rgba(255,255,255,0.07);
+    --border-accent: rgba(255,255,255,0.13);
+    --text-primary: #f0f4ff;
+    --text-secondary: #8892a4;
+    --text-muted: #4a5568;
+    --red: #ff4757;
+    --red-soft: rgba(255,71,87,0.15);
+    --blue: #3b9eff;
+    --blue-soft: rgba(59,158,255,0.15);
+    --green: #2ed573;
+    --green-soft: rgba(46,213,115,0.15);
+    --amber: #ffa502;
+    --amber-soft: rgba(255,165,2,0.15);
+    --purple: #a55eea;
+    --purple-soft: rgba(165,94,234,0.15);
+    --teal: #1dd1a1;
+    --teal-soft: rgba(29,209,161,0.15);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .topbar-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--red-soft); border: 1px solid rgba(255,71,87,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: var(--red);
+  }
+  .topbar h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+  .topbar h1 span { color: var(--text-secondary); font-weight: 400; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .status-dot {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .dot-live {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--amber); animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:.5; transform:scale(1.3)} }
+  .source-tag {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px;
+    background: var(--bg-card); border: 1px solid var(--border-accent);
+    color: var(--text-secondary);
+  }
+
+  /* ── LAYOUT ── */
+  .dash { max-width: 1280px; margin: 0 auto; padding: 28px 32px 48px; }
+
+  /* ── METRIC CARDS ── */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .metric {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s, transform .2s;
+    cursor: default;
+  }
+  .metric:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+  .metric::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .metric.red::before { background: var(--red); }
+  .metric.blue::before { background: var(--blue); }
+  .metric.green::before { background: var(--green); }
+  .metric.amber::before { background: var(--amber); }
+  .metric.purple::before { background: var(--purple); }
+
+  .metric-icon {
+    width: 32px; height: 32px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; margin-bottom: 12px;
+  }
+  .metric.red .metric-icon { background: var(--red-soft); color: var(--red); }
+  .metric.blue .metric-icon { background: var(--blue-soft); color: var(--blue); }
+  .metric.green .metric-icon { background: var(--green-soft); color: var(--green); }
+  .metric.amber .metric-icon { background: var(--amber-soft); color: var(--amber); }
+  .metric.purple .metric-icon { background: var(--purple-soft); color: var(--purple); }
+
+  .metric-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .metric-value { font-size: 26px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+  .metric-sub { font-size: 11px; margin-top: 6px; color: var(--text-secondary); }
+  .metric-sub.up { color: var(--red); }
+  .metric-sub.down { color: var(--green); }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    transition: border-color .2s;
+  }
+  .card:hover { border-color: var(--border-accent); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .card-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .06em; }
+
+  /* ── GRID LAYOUTS ── */
+  .grid-3-1 { display: grid; grid-template-columns: 3fr 1.4fr; gap: 14px; margin-bottom: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media(max-width: 900px) { .grid-3-1, .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 4px; background: var(--bg-primary); border-radius: var(--radius-sm); padding: 4px; border: 1px solid var(--border); width: fit-content; }
+  .tab {
+    font-size: 12px; padding: 6px 14px; border-radius: 6px;
+    border: none; background: transparent; color: var(--text-secondary);
+    cursor: pointer; transition: all .15s; font-family: inherit; font-weight: 500;
+  }
+  .tab.active { background: var(--bg-card-hover); color: var(--text-primary); }
+  .tab:hover:not(.active) { color: var(--text-primary); }
+
+  /* ── LEGEND ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; }
+  .leg { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); }
+  .leg-dot { width: 20px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── TABLE ── */
+  .region-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .region-table th {
+    font-size: 10px; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: .07em; padding: 0 0 10px; text-align: left;
+    border-bottom: 1px solid var(--border); font-weight: 500;
+  }
+  .region-table th:last-child { text-align: right; }
+  .region-table td { padding: 10px 0; border-bottom: 1px solid var(--border); color: var(--text-primary); vertical-align: middle; }
+  .region-table tr:last-child td { border-bottom: none; }
+  .region-table td:last-child { text-align: right; }
+  .flag { font-size: 16px; margin-right: 8px; }
+  .bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .bar-track { flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 5px; overflow: hidden; min-width: 60px; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+  .pct { font-size: 11px; color: var(--text-secondary); min-width: 30px; text-align: right; }
+  .cas-val { font-size: 13px; font-weight: 500; font-family: 'DM Mono', monospace; padding-right: 16px; color: var(--text-primary); }
+
+  /* ── VACCINE BARS ── */
+  .vac-list { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
+  .vac-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+  .vac-label { font-size: 12px; color: var(--text-secondary); }
+  .vac-pct { font-size: 14px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .vac-bar { background: rgba(255,255,255,0.06); border-radius: 4px; height: 6px; overflow: hidden; }
+  .vac-fill { height: 100%; border-radius: 4px; transition: width .8s ease; }
+
+  /* ── DONUT ── */
+  .donut-wrap { display: flex; align-items: center; gap: 20px; }
+  .donut-legend { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .donut-leg-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .donut-leg-sq { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .donut-leg-val { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--text-primary); font-family: 'DM Mono', monospace; }
+
+  /* ── VARIANT PILLS ── */
+  .variant-timeline { margin-top: 8px; }
+  .vt-header { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-bottom: 8px; letter-spacing: .04em; }
+
+  /* ── FOOTER ── */
+  .footer { margin-top: 28px; text-align: center; font-size: 11px; color: var(--text-muted); line-height: 1.8; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-icon"><i class="ti ti-virus"></i></div>
+    <h1>COVID-19 Dashboard <span>/ Vue mondiale</span></h1>
+  </div>
+  <div class="topbar-right">
+    <div class="status-dot"><span class="dot-live"></span>Données 2020 – 2023</div>
+    <span class="source-tag">OMS · Johns Hopkins · OWID</span>
+  </div>
+</div>
+
+<div class="dash">
+
+  <!-- METRICS -->
+  <div class="metrics">
+    <div class="metric red">
+      <div class="metric-icon"><i class="ti ti-users"></i></div>
+      <div class="metric-label">Cas confirmés</div>
+      <div class="metric-value">700M</div>
+      <div class="metric-sub up"><i class="ti ti-trending-up" style="font-size:11px;"></i> Pic jan 2022 (Omicron)</div>
+    </div>
+    <div class="metric amber">
+      <div class="metric-icon"><i class="ti ti-skull"></i></div>
+      <div class="metric-label">Décès</div>
+      <div class="metric-value">6,9M</div>
+      <div class="metric-sub">Létalité ~1 %</div>
+    </div>
+    <div class="metric green">
+      <div class="metric-icon"><i class="ti ti-heart-check"></i></div>
+      <div class="metric-label">Guérisons</div>
+      <div class="metric-value">672M</div>
+      <div class="metric-sub down"><i class="ti ti-check" style="font-size:11px;"></i> Taux de rétablissement 96 %</div>
+    </div>
+    <div class="metric blue">
+      <div class="metric-icon"><i class="ti ti-vaccine"></i></div>
+      <div class="metric-label">Doses vaccinales</div>
+      <div class="metric-value">13,5Mds</div>
+      <div class="metric-sub down"><i class="ti ti-check" style="font-size:11px;"></i> 70 % pop. mondiale</div>
+    </div>
+    <div class="metric purple">
+      <div class="metric-icon"><i class="ti ti-world"></i></div>
+      <div class="metric-label">Pays touchés</div>
+      <div class="metric-value">195</div>
+      <div class="metric-sub">Pandémie mondiale</div>
+    </div>
+  </div>
+
+  <!-- MAIN CHART + DONUT -->
+  <div class="grid-3-1">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" id="main-chart-title">Nouveaux cas quotidiens (millions)</span>
+        <div class="tabs" id="tab-container">
+          <button class="tab active" onclick="switchTab('cas',this)">Cas</button>
+          <button class="tab" onclick="switchTab('deces',this)">Décès</button>
+          <button class="tab" onclick="switchTab('vaccines',this)">Vaccination</button>
+        </div>
+      </div>
+      <div class="legend" id="main-legend" style="margin-bottom:12px;"></div>
+      <div style="position:relative; width:100%; height:260px;">
+        <canvas id="mainChart" role="img" aria-label="Courbe des indicateurs COVID-19 par période 2020-2023"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Répartition des cas</span></div>
+      <div class="donut-wrap">
+        <div style="position:relative; width:130px; height:130px; flex-shrink:0;">
+          <canvas id="donutChart" role="img" aria-label="Répartition des cas par région"></canvas>
+        </div>
+        <div class="donut-legend" id="donut-legend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGIONS + VACCINATION -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Régions les plus touchées</span></div>
+      <table class="region-table" aria-label="Cas COVID par région">
+        <thead><tr><th>Région</th><th>Cas</th><th>Part</th></tr></thead>
+        <tbody id="region-table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Couverture vaccinale</span></div>
+      <div class="vac-list">
+        <div class="vac-item">
+          <div class="vac-row"><span class="vac-label">Au moins 1 dose</span><span class="vac-pct" style="color:var(--green);">70 %</span></div>
+          <div class="vac-bar"><div class="vac-fill" style="width:70%; background:var(--green);"></div></div>
+        </div>
+        <div class="vac-item">
+          <div class="vac-row"><span class="vac-label">Schéma vaccinal complet</span><span class="vac-pct" style="color:var(--blue);">62 %</span></div>
+          <div class="vac-bar"><div class="vac-fill" style="width:62%; background:var(--blue);"></div></div>
+        </div>
+        <div class="vac-item">
+          <div class="vac-row"><span class="vac-label">Dose de rappel</span><span class="vac-pct" style="color:var(--amber);">38 %</span></div>
+          <div class="vac-bar"><div class="vac-fill" style="width:38%; background:var(--amber);"></div></div>
+        </div>
+        <div class="vac-item">
+          <div class="vac-row"><span class="vac-label">Pays à revenus élevés</span><span class="vac-pct" style="color:var(--teal);">90 %</span></div>
+          <div class="vac-bar"><div class="vac-fill" style="width:90%; background:var(--teal);"></div></div>
+        </div>
+        <div class="vac-item">
+          <div class="vac-row"><span class="vac-label">Pays à revenus faibles</span><span class="vac-pct" style="color:var(--red);">28 %</span></div>
+          <div class="vac-bar"><div class="vac-fill" style="width:28%; background:var(--red);"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIANTS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Chronologie des variants dominants</span>
+      <div class="legend">
+        <span class="leg"><span class="leg-dot" style="background:#3b9eff;"></span>Souche originale</span>
+        <span class="leg"><span class="leg-dot" style="background:#ff4757;"></span>Alpha</span>
+        <span class="leg"><span class="leg-dot" style="background:#ffa502;"></span>Delta</span>
+        <span class="leg"><span class="leg-dot" style="background:#a55eea;"></span>Omicron BA.1</span>
+        <span class="leg"><span class="leg-dot" style="background:#1dd1a1;"></span>Omicron BA.4/5</span>
+      </div>
+    </div>
+    <div style="position:relative; width:100%; height:200px;">
+      <canvas id="variantChart" role="img" aria-label="Graphique en aires de la succession des variants COVID-19 de 2020 à 2023"></canvas>
+    </div>
+  </div>
+
+  <div class="footer">
+    Sources : Organisation Mondiale de la Santé (OMS) · Johns Hopkins University · Our World in Data<br>
+    Données illustratives basées sur les rapports officiels publiés entre 2020 et 2023. Réalisé par ANTON NELCON Steve
+  </div>
+
+</div><!-- /dash -->
+
+<script>
+/* ── DATA ── */
+const months = ['Jan 20','Avr 20','Jui 20','Oct 20','Jan 21','Avr 21','Jui 21','Oct 21','Jan 22','Avr 22','Jui 22','Oct 22','Jan 23','Avr 23'];
+
+const regions = [
+  { name: 'Europe',        cas: 251, color: '#3b9eff', pct: 36 },
+  { name: 'Asie-Pacifique',cas: 210, color: '#1dd1a1', pct: 30 },
+  { name: 'Amériques',     cas: 175, color: '#ffa502', pct: 25 },
+  { name: 'Afrique',       cas:  42, color: '#ff4757', pct:  6 },
+  { name: 'Moyen-Orient',  cas:  22, color: '#a55eea', pct:  3 },
+];
+
+const dataByTab = {
+  cas: {
+    title: 'Nouveaux cas quotidiens (millions)',
+    datasets: [
+      { label:'Monde',     data:[0.1,0.3,0.6,0.8,1.2,1.4,2.5,4.1,8.2,5.1,3.2,1.8,1.2,0.7], color:'#ff4757' },
+      { label:'Europe',    data:[0.02,0.08,0.15,0.3,0.4,0.3,0.5,1.2,2.8,1.6,0.9,0.6,0.4,0.2], color:'#3b9eff' },
+      { label:'Asie',      data:[0.05,0.1,0.2,0.2,0.3,0.5,1.2,1.5,3.5,2.1,1.5,0.7,0.4,0.2], color:'#1dd1a1' },
+      { label:'Amériques', data:[0.02,0.1,0.2,0.25,0.4,0.5,0.7,1.2,2.0,1.2,0.7,0.4,0.3,0.2], color:'#ffa502' },
+    ]
+  },
+  deces: {
+    title: 'Décès quotidiens (milliers)',
+    datasets: [
+      { label:'Monde',     data:[2,8,15,18,20,22,45,70,12,9,7,5,4,2], color:'#ff4757' },
+      { label:'Europe',    data:[0.5,2,4,6,7,5,8,15,3,2.5,2,1.5,1,0.5], color:'#3b9eff' },
+      { label:'Asie',      data:[0.8,2,4,4,5,7,18,25,4,3,2.5,2,1.5,0.8], color:'#1dd1a1' },
+      { label:'Amériques', data:[0.5,3,6,7,7,8,16,24,4,3,2,1.5,1,0.6], color:'#ffa502' },
+    ]
+  },
+  vaccines: {
+    title: 'Doses administrées cumulées (milliards)',
+    datasets: [
+      { label:'Doses totales',    data:[0,0,0,0,0.2,1.2,3.2,5.5,8.0,9.5,10.5,11.8,12.8,13.5], color:'#1dd1a1' },
+      { label:'Schéma complet',   data:[0,0,0,0,0.05,0.5,1.5,3.0,5.5,7.0,8.0,8.8,9.5,10.2],  color:'#3b9eff' },
+    ]
+  }
+};
+
+/* ── CHART DEFAULTS ── */
+Chart.defaults.color = '#8892a4';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+/* ── REGION TABLE ── */
+const tbody = document.getElementById('region-table-body');
+regions.forEach(r => {
+  tbody.innerHTML += `<tr>
+    <td style="font-weight:500;">${r.name}</td>
+    <td class="cas-val">${r.cas}M</td>
+    <td>
+      <div class="bar-wrap">
+        <div class="bar-track"><div class="bar-fill" style="width:${r.pct}%; background:${r.color};"></div></div>
+        <span class="pct">${r.pct}%</span>
+      </div>
+    </td>
+  </tr>`;
+});
+
+/* ── DONUT ── */
+const donutCtx = document.getElementById('donutChart').getContext('2d');
+const donutLegEl = document.getElementById('donut-legend');
+new Chart(donutCtx, {
+  type: 'doughnut',
+  data: {
+    labels: regions.map(r => r.name),
+    datasets: [{ data: regions.map(r => r.pct), backgroundColor: regions.map(r => r.color), borderWidth: 2, borderColor: '#161d2e', hoverOffset: 4 }]
+  },
+  options: {
+    cutout: '68%', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}%` } } }
+  }
+});
+regions.forEach(r => {
+  donutLegEl.innerHTML += `<div class="donut-leg-item"><span class="donut-leg-sq" style="background:${r.color};"></span>${r.name}<span class="donut-leg-val">${r.pct}%</span></div>`;
+});
+
+/* ── MAIN CHART ── */
+let mainChart;
+function buildMainChart(key) {
+  const cfg = dataByTab[key];
+  document.getElementById('main-chart-title').textContent = cfg.title;
+  const legendEl = document.getElementById('main-legend');
+  legendEl.innerHTML = cfg.datasets.map(d => `<span class="leg"><span class="leg-dot" style="background:${d.color};"></span>${d.label}</span>`).join('');
+  if (mainChart) mainChart.destroy();
+  mainChart = new Chart(document.getElementById('mainChart'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: cfg.datasets.map(d => ({
+        label: d.label, data: d.data,
+        borderColor: d.color,
+        backgroundColor: d.color + '18',
+        tension: 0.4, fill: false,
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 5,
+        pointHoverBackgroundColor: d.color, pointHoverBorderColor: '#161d2e', pointHoverBorderWidth: 2
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { mode:'index', intersect:false, backgroundColor:'#1c2540', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, padding:10, callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}` } } },
+      scales: {
+        x: { ticks: { font:{size:11}, maxRotation:40, color:'#4a5568' }, grid:{color:'rgba(255,255,255,0.04)'} },
+        y: { ticks: { font:{size:11}, color:'#4a5568', callback: v => v.toFixed(1) }, grid:{color:'rgba(255,255,255,0.04)'} }
+      },
+      interaction: { mode:'index', intersect:false }
+    }
+  });
+}
+
+function switchTab(key, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  buildMainChart(key);
+}
+
+buildMainChart('cas');
+
+/* ── VARIANT CHART ── */
+const variantLabels = ['Jan 20','Avr 20','Jui 20','Oct 20','Jan 21','Avr 21','Jui 21','Oct 21','Jan 22','Avr 22','Jui 22','Oct 22','Jan 23'];
+new Chart(document.getElementById('variantChart'), {
+  type: 'line',
+  data: {
+    labels: variantLabels,
+    datasets: [
+      { label:'Souche originale', data:[100,95,85,70,40,15,5,2,1,1,1,1,1], borderColor:'#3b9eff', backgroundColor:'rgba(59,158,255,0.12)', fill:true, tension:0.4, borderWidth:1.5, pointRadius:0 },
+      { label:'Alpha',            data:[0,2,8,20,45,55,15,5,2,1,1,1,1],   borderColor:'#ff4757', backgroundColor:'rgba(255,71,87,0.12)',  fill:true, tension:0.4, borderWidth:1.5, pointRadius:0 },
+      { label:'Delta',            data:[0,0,2,5,10,25,78,70,10,5,3,2,2],  borderColor:'#ffa502', backgroundColor:'rgba(255,165,2,0.12)',  fill:true, tension:0.4, borderWidth:1.5, pointRadius:0 },
+      { label:'Omicron BA.1',     data:[0,0,0,0,0,0,0,20,80,55,20,10,8], borderColor:'#a55eea', backgroundColor:'rgba(165,94,234,0.12)',fill:true, tension:0.4, borderWidth:1.5, pointRadius:0 },
+      { label:'Omicron BA.4/5',   data:[0,0,0,0,0,0,0,0,0,35,72,82,85],  borderColor:'#1dd1a1', backgroundColor:'rgba(29,209,161,0.12)',fill:true, tension:0.4, borderWidth:1.5, pointRadius:0 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend:{display:false}, tooltip:{ mode:'index', intersect:false, backgroundColor:'#1c2540', borderColor:'rgba(255,255,255,0.1)', borderWidth:1, padding:10, callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${Math.round(ctx.parsed.y)}%` } } },
+    scales: {
+      x: { ticks:{font:{size:11}, maxRotation:40, color:'#4a5568'}, grid:{color:'rgba(255,255,255,0.04)'} },
+      y: { min:0, max:100, ticks:{font:{size:11}, color:'#4a5568', callback: v => v+'%'}, grid:{color:'rgba(255,255,255,0.04)'} }
+    }
+  }
+});
+</script>
+</body>
+</html>
